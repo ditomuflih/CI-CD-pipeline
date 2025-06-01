@@ -30,9 +30,9 @@ pipeline {
 
 
 
-        KUBERNETES_DEPLOYMENT_FILE = 'k8s/deployment.yaml' // Path relatif dari root repo
+        KUBERNETES_DEPLOYMENT_FILE = 'kubernetes/deployment.yaml' // Path relatif dari root repo
 
-        KUBERNETES_SERVICE_FILE    = 'k8s/service.yaml'     // Path relatif dari root repo
+        KUBERNETES_SERVICE_FILE    = 'kubernetes/service.yaml'     // Path relatif dari root repo
 
     }
 
