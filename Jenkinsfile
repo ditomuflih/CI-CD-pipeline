@@ -16,7 +16,7 @@ pipeline {
 
         DOCKER_IMAGE_REPO_NAME   = "carvilla-app-wsl-final" // GANTI dengan nama repo image yang Anda inginkan di Docker Hub
 
-        // Pastikan nama deployment di k8s/deployment.yaml (metadata.name) adalah 'carvilla' atau sesuaikan di bawah
+        // Pastikan nama deployment di kubernetes/deployment.yaml (metadata.name) adalah 'carvilla' atau sesuaikan di bawah
 
         APP_DEPLOYMENT_NAME      = 'carvilla'
 
@@ -30,9 +30,9 @@ pipeline {
 
 
 
-        KUBERNETES_DEPLOYMENT_FILE = 'kubernetes/deployment.yaml' // Path relatif dari root repo
+        KUBERNETES_DEPLOYMENT_FILE = 'kubernetes/deployment.yaml' // Path sudah disesuaikan
 
-        KUBERNETES_SERVICE_FILE    = 'kubernetes/service.yaml'     // Path relatif dari root repo
+        KUBERNETES_SERVICE_FILE    = 'kubernetes/service.yaml'  // Path sudah disesuaikan (asumsi)
 
     }
 
@@ -82,8 +82,6 @@ pipeline {
 
                     // Jika ada perintah tes, tambahkan di sini.
 
-                    // Contoh: sh './mvnw test' atau sh 'npm test'
-
                 }
 
             }
@@ -110,10 +108,6 @@ pipeline {
 
                 // Perintah Docker akan dijalankan di dalam container 'docker'
 
-                // yang telah didefinisikan di Pod Template 'jenkins-agent'
-
-                // dan memiliki akses ke Docker socket.
-
                 container('docker') {
 
                     script {
@@ -126,8 +120,6 @@ pipeline {
 
                         echo "Building Docker image: ${fullImageName}"
 
-                        // Dockerfile harus ada di root workspace hasil checkout
-
                         sh "docker build -t ${fullImageName} ."
 
                         echo "Docker image built."
@@ -135,8 +127,6 @@ pipeline {
 
 
                         echo "Logging in to Docker Hub..."
-
-                        // Menggunakan kredensial yang sudah disimpan di Jenkins
 
                         withCredentials([usernamePassword(credentialsId: env.DOCKERHUB_CREDENTIALS_ID, passwordVariable: 'DOCKERHUB_PASSWORD', usernameVariable: 'DOCKERHUB_USERNAME_FROM_CREDS')]) {
 
@@ -158,8 +148,6 @@ pipeline {
 
                         echo "Updating Kubernetes deployment manifest (${env.KUBERNETES_DEPLOYMENT_FILE}) with image: ${fullImageName}"
 
-                        // Menggunakan sed untuk mengganti placeholder image di file deployment.yaml
-
                         sh "sed -i 's|^ *image:.*|  image: ${fullImageName}|g' ${env.KUBERNETES_DEPLOYMENT_FILE}"
 
                         echo "Kubernetes deployment manifest updated."
@@ -167,8 +155,6 @@ pipeline {
 
 
                         echo "Stashing Kubernetes manifests..."
-
-                        // Stash file YAML yang sudah diubah untuk digunakan di stage deploy
 
                         stash includes: "${env.KUBERNETES_DEPLOYMENT_FILE}, ${env.KUBERNETES_SERVICE_FILE}", name: 'kubeManifestsForDeploy'
 
@@ -190,7 +176,7 @@ pipeline {
 
                 kubernetes {
 
-                    label 'jenkins-agent' // Gunakan agent yang sama (memiliki kubectl via service account)
+                    label 'jenkins-agent' // Gunakan agent yang sama
 
                     // cloud 'kubernetes' // Opsional
 
@@ -200,19 +186,11 @@ pipeline {
 
             steps {
 
-                // Perintah kubectl akan dijalankan di container 'jnlp' (default dari pod agent)
+                // Perintah kubectl akan dijalankan di dalam container 'kubectl'
 
-                // yang seharusnya memiliki konteks Service Account untuk berinteraksi dengan K8s API.
+                // yang telah didefinisikan di Pod Template 'jenkins-agent'
 
-                // Jika container 'jnlp' Anda (dari image jenkins/inbound-agent) tidak punya kubectl,
-
-                // Anda perlu menambahkannya ke image tersebut atau menambahkan container lain (misal, bitnami/kubectl)
-
-                // ke Pod Template dan menjalankan perintah kubectl di sana.
-
-                // Untuk Minikube, service account Jenkins ('jenkins-sa') sudah punya hak.
-
-                container('jnlp') {
+                container('kubectl') {
 
                     script {
 
@@ -226,7 +204,9 @@ pipeline {
 
                         echo "Verifying kubectl context (running inside Kubernetes, should be automatic)..."
 
-                        // sh 'kubectl version --client' // Untuk verifikasi jika kubectl ada di 'jnlp'
+                        sh 'kubectl config current-context'
+
+                        sh 'kubectl version --client'
 
 
 
@@ -249,8 +229,6 @@ pipeline {
                         echo "Deployment to Kubernetes finished."
 
                         echo "Waiting for rollout of deployment '${env.APP_DEPLOYMENT_NAME}' in namespace '${env.APP_NAMESPACE}'..."
-
-                        // Perintah ini akan menunggu rollout selesai atau timeout
 
                         sh "kubectl rollout status deployment/${env.APP_DEPLOYMENT_NAME} -n ${env.APP_NAMESPACE} --timeout=3m"
 
@@ -276,7 +254,7 @@ pipeline {
 
             // Menggunakan agent 'master' (built-in Jenkins node) untuk cleanup.
 
-            node('master') {
+            node('master') { // Pastikan node Jenkins master/controller Anda memiliki label 'master'
 
                cleanWs()
 
