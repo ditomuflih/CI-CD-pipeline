@@ -64,9 +64,9 @@ pipeline {
 
                 kubernetes {
 
-                    label 'jenkins-agent' // Menggunakan agent Kubernetes dari Pod Template
+                    cloud 'k8s'                 // Menentukan nama Kubernetes Cloud Anda
 
-                    // cloud 'kubernetes' // Opsional: Nama Kubernetes cloud Anda jika bukan 'kubernetes'
+                    inheritFrom 'jenkins-agent' // Merujuk ke NAMA Pod Template Anda
 
                 }
 
@@ -74,7 +74,7 @@ pipeline {
 
             steps {
 
-                // 'jnlp' adalah nama default container utama di pod agent Kubernetes
+                // 'jnlp' adalah nama container utama di pod agent Kubernetes
 
                 container('jnlp') {
 
@@ -96,9 +96,9 @@ pipeline {
 
                 kubernetes {
 
-                    label 'jenkins-agent' // Harus cocok dengan label di Pod Template Anda
+                    cloud 'k8s'                 // Menentukan nama Kubernetes Cloud Anda
 
-                    // cloud 'kubernetes' // Opsional: Nama Kubernetes cloud Anda
+                    inheritFrom 'jenkins-agent' // Merujuk ke NAMA Pod Template Anda
 
                 }
 
@@ -176,9 +176,9 @@ pipeline {
 
                 kubernetes {
 
-                    label 'jenkins-agent' // Gunakan agent yang sama
+                    cloud 'k8s'                 // Menentukan nama Kubernetes Cloud Anda
 
-                    // cloud 'kubernetes' // Opsional
+                    inheritFrom 'jenkins-agent' // Merujuk ke NAMA Pod Template Anda
 
                 }
 
@@ -187,8 +187,6 @@ pipeline {
             steps {
 
                 // Perintah kubectl akan dijalankan di dalam container 'kubectl'
-
-                // yang telah didefinisikan di Pod Template 'jenkins-agent'
 
                 container('kubectl') {
 
@@ -202,7 +200,7 @@ pipeline {
 
 
 
-                        echo "Verifying kubectl context (running inside Kubernetes, should be automatic)..."
+                        echo "Verifying kubectl context..."
 
                         sh 'kubectl config current-context'
 
