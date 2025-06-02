@@ -204,8 +204,6 @@ pipeline {
 
                         echo "Verifying kubectl context..."
 
-                        sh 'kubectl config current-context'
-
                         sh 'kubectl version --client'
 
 
