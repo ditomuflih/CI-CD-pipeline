@@ -186,60 +186,41 @@ pipeline {
 
             }
 
-            steps {
-
-                // Perintah kubectl akan dijalankan di dalam container 'kubectl'
-
-                container('kubectl') { 
-
+steps {
+                container('kubectl') {
                     script {
-
                         echo "Unstashing Kubernetes manifests..."
-
                         unstash 'kubeManifestsForDeploy'
-
                         echo "Kubernetes manifests unstashed."
 
-
-
-                        echo "Verifying kubectl context..."
-
+                        echo "Verifying kubectl client version..."
                         sh 'kubectl version --client'
 
+                        echo "--- DIAGNOSTIC: Content of kubernetes/deployment.yaml in Jenkins workspace ---"
+                        sh 'cat kubernetes/deployment.yaml' // Cetak isi file
+                        sh 'echo "--- DIAGNOSTIC: End of content ---"'
 
+                        echo "DIAGNOSTIC: Validating kubernetes/deployment.yaml with kubectl dry-run..."
+                        // Coba validasi dengan kubectl dry-run di dalam pipeline
+                        // Tambahkan '|| true' agar pipeline tidak langsung gagal jika dry-run error,
+                        // tapi kita bisa lihat outputnya.
+                        sh "kubectl apply -f ${env.KUBERNETES_DEPLOYMENT_FILE} --dry-run=client -n ${env.APP_NAMESPACE} || true"
 
                         echo "Applying Kubernetes deployment (${env.KUBERNETES_DEPLOYMENT_FILE})..."
-
                         sh "kubectl apply -f ${env.KUBERNETES_DEPLOYMENT_FILE}"
-
                         echo "Kubernetes deployment applied."
 
-
-
                         echo "Applying Kubernetes service (${env.KUBERNETES_SERVICE_FILE})..."
-
                         sh "kubectl apply -f ${env.KUBERNETES_SERVICE_FILE}"
-
                         echo "Kubernetes service applied."
 
-
-
                         echo "Deployment to Kubernetes finished."
-
                         echo "Waiting for rollout of deployment '${env.APP_DEPLOYMENT_NAME}' in namespace '${env.APP_NAMESPACE}'..."
-
-                        sh "kubectl rollout status deployment/${env.APP_DEPLOYMENT_NAME} -n ${env.APP_NAMESPACE} --timeout=5m" // Timeout dinaikkan sedikit
-
+                        sh "kubectl rollout status deployment/${env.APP_DEPLOYMENT_NAME} -n ${env.APP_NAMESPACE} --timeout=5m"
                     }
-
                 }
-
             }
-
         }
-
-    }
-
 
 
     post {
