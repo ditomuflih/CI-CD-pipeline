@@ -1,9 +1,8 @@
-# Baris 1
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: carvilla-web       # Sesuai dengan APP_DEPLOYMENT_NAME di Jenkinsfile
-  namespace: default      # Sesuai dengan APP_NAMESPACE di Jenkinsfile
+  name: carvilla-web
+  namespace: default
   labels:
     app: carvilla-web
 spec:
@@ -17,20 +16,18 @@ spec:
         app: carvilla-web
     spec:
       containers:
-      - name: carvilla-web # Nama container
-        image: placeholder/image:latest # Akan diganti oleh pipeline
+      - name: carvilla-web
+        image: 10.34.7.115:30500/carvilla:${BUILD_NUMBER}
         ports:
         - containerPort: 80
           name: http
-        # 'resources' harus sejajar dengan 'ports', 'image', 'name' (container)
         resources:
           limits:
             cpu: "0.5"
-            memory: "256Mi" # Indentasi ini harus di bawah 'limits' dan sejajar 'cpu'
+            memory: "256Mi"
           requests:
             cpu: "0.2"
-            memory: "128Mi" # Indentasi ini harus di bawah 'requests' dan sejajar 'cpu'
-        # 'readinessProbe' harus sejajar dengan 'resources', 'ports', dll.
+            memory: "128Mi"
         readinessProbe:
           httpGet:
             path: /
