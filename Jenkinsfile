@@ -20,7 +20,7 @@ pipeline {
 
         // Disesuaikan berdasarkan metadata.name di kubernetes/deployment.yaml Anda
 
-        APP_DEPLOYMENT_NAME      = 'carvilla-web' 
+        APP_DEPLOYMENT_NAME      = 'carvilla-web-test' 
 
         
 

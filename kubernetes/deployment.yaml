@@ -1,36 +1,22 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: carvilla-web
+  name: carvilla-web-test # Kita gunakan nama berbeda untuk tes ini
   namespace: default
   labels:
-    app: carvilla-web
+    app: carvilla-web-test
 spec:
-  replicas: 2
+  replicas: 1
   selector:
     matchLabels:
-      app: carvilla-web
+      app: carvilla-web-test
   template:
     metadata:
       labels:
-        app: carvilla-web
+        app: carvilla-web-test
     spec:
       containers:
-      - name: carvilla-web
-        image: 10.34.7.115:30500/carvilla:${BUILD_NUMBER}
+      - name: carvilla-web-container
+        image: nginx:alpine # Gunakan image standar yang pasti ada
         ports:
         - containerPort: 80
-          name: http
-        resources:
-          limits:
-            cpu: "0.5"
-            memory: "256Mi"
-          requests:
-            cpu: "0.2"
-            memory: "128Mi"
-        readinessProbe:
-          httpGet:
-            path: /
-            port: 80
-          initialDelaySeconds: 5
-          periodSeconds: 10
