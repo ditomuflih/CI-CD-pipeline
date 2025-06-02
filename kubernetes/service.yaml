@@ -12,4 +12,4 @@ spec:
   ports:
   - port: 80
     targetPort: 80
-    nodePort: 40000
+    # nodePort: (dihapus atau ganti ke rentang valid misal 30080)

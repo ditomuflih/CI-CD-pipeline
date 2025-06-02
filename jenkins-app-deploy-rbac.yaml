@@ -1,0 +1,23 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  namespace: default # Namespace target tempat aplikasi akan di-deploy
+  name: app-deployer-role
+rules:
+- apiGroups: ["", "apps", "extensions"] # Sesuaikan apiGroups jika aplikasi Anda menggunakan yang lain
+  resources: ["deployments", "services", "pods", "configmaps", "secrets", "ingresses"] # Sesuaikan resources jika perlu
+  verbs: ["create", "delete", "get", "list", "patch", "update", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: jenkins-app-deploy-binding
+  namespace: default # Namespace target tempat aplikasi akan di-deploy
+subjects:
+- kind: ServiceAccount
+  name: jenkins-sa          # Nama Service Account Jenkins Anda
+  namespace: devops-tools   # Namespace tempat Service Account Jenkins berada
+roleRef:
+  kind: Role
+  name: app-deployer-role     # Nama Role yang baru dibuat di atas (di namespace 'default')
+  apiGroup: rbac.authorization.k8s.io

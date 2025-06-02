@@ -1,0 +1,48 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: jenkins         # Nama Deployment Jenkins
+  namespace: devops-tools # Namespace tempat Jenkins di-deploy
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: jenkins       # Label ini harus cocok dengan label di Pod template dan selector di Service Jenkins
+  template:
+    metadata:
+      labels:
+        app: jenkins     # Label untuk Pod Jenkins
+    spec:
+      serviceAccountName: jenkins-sa # Menggunakan Service Account yang sudah kita buat
+      containers:
+      - name: jenkins
+        image: jenkins/jenkins:lts-jdk17 # Image Jenkins (LTS dengan JDK 17 adalah pilihan baik)
+        ports:
+        - name: http
+          containerPort: 8080      # Port untuk UI Jenkins
+        - name: jnlp
+          containerPort: 50000      # Port untuk agent JNLP
+        volumeMounts:
+        - name: jenkins-home         # Nama volume mount
+          mountPath: /var/jenkins_home # Path di dalam container tempat data Jenkins disimpan
+        # Tambahkan readiness dan liveness probes untuk production-grade setup (opsional untuk tutorial awal)
+        # readinessProbe:
+        #   httpGet:
+        #     path: /login
+        #     port: 8080
+        #   initialDelaySeconds: 60
+        #   periodSeconds: 10
+        #   timeoutSeconds: 5
+        #   failureThreshold: 12 # ~2 minutes
+        # livenessProbe:
+        #   httpGet:
+        #     path: /login
+        #     port: 8080
+        #   initialDelaySeconds: 60
+        #   periodSeconds: 10
+        #   timeoutSeconds: 5
+        #   failureThreshold: 12 # ~2 minutes
+      volumes:
+      - name: jenkins-home           # Nama volume
+        persistentVolumeClaim:
+          claimName: jenkins-pvc     # Menggunakan PersistentVolumeClaim yang sudah kita buat
