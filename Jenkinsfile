@@ -1,193 +1,96 @@
 pipeline {
-
     agent none // Tidak ada agent global, tentukan per stage
 
-
-
     environment {
-
         DOCKERHUB_CREDENTIALS_ID = 'dockerhub-credentials' // ID kredensial DockerHub di Jenkins
 
-
-
         // === PASTIKAN ANDA MENGGANTI PLACEHOLDER INI DENGAN INFO ANDA ===
-
-        DOCKERHUB_USERNAME       = "muflihf" // GANTI dengan username Docker Hub Anda
-
+        DOCKERHUB_USERNAME       = "ditomuflih" // GANTI dengan username Docker Hub Anda
         DOCKER_IMAGE_REPO_NAME   = "carvilla-app-wsl-final" // GANTI dengan nama repo image yang Anda inginkan di Docker Hub
-
         
-
         // Disesuaikan berdasarkan metadata.name di kubernetes/deployment.yaml Anda
-
-        APP_DEPLOYMENT_NAME      = 'carvilla-web-test' 
-
+        APP_DEPLOYMENT_NAME      = 'carvilla-web' 
         
-
         // Namespace tempat aplikasi akan di-deploy. File YAML aplikasi Anda menggunakan 'default'.
-
         APP_NAMESPACE            = 'default' 
-
         // =================================================================
 
-
-
-        KUBERNETES_DEPLOYMENT_FILE = 'kubernetes/deployment.yaml' // Path sudah disesuaikan
-
-        KUBERNETES_SERVICE_FILE    = 'kubernetes/service.yaml'  // Path sudah disesuaikan (asumsi)
-
+        KUBERNETES_DEPLOYMENT_FILE = 'kubernetes/deployment.yaml' 
+        KUBERNETES_SERVICE_FILE    = 'kubernetes/service.yaml'
     }
 
-
-
     stages {
-
         stage('Checkout SCM') {
-
-            agent any // Bisa agent Jenkins default/master untuk checkout awal
-
+            agent any 
             steps {
-
                 echo "Checking out SCM (Source Code Management)..."
-
-                checkout scm // Mengambil kode dari Git repository yang dikonfigurasi di Jenkins job
-
+                checkout scm 
                 echo "Checkout complete."
-
             }
-
         }
-
-
 
         stage('Run Tests (Placeholder)') {
-
             agent {
-
                 kubernetes {
-
                     cloud 'k8s'                 // Nama Kubernetes Cloud Anda di Jenkins
-
                     inheritFrom 'jenkins-agent' // Merujuk ke NAMA Pod Template Anda
-
                 }
-
             }
-
             steps {
-
-                // 'jnlp' adalah nama container utama di pod agent Kubernetes
-
                 container('jnlp') { 
-
                     echo 'Running tests... (No actual tests configured in this example)'
-
-                    // Jika ada perintah tes, tambahkan di sini.
-
                 }
-
             }
-
         }
-
-
 
         stage('Build and Push Docker Image') {
-
             agent {
-
                 kubernetes {
-
                     cloud 'k8s'
-
                     inheritFrom 'jenkins-agent'
-
                 }
-
             }
-
             steps {
-
-                // Perintah Docker akan dijalankan di dalam container 'docker'
-
                 container('docker') { 
-
                     script {
-
                         def imageTag = env.BUILD_NUMBER
-
                         def fullImageName = "${env.DOCKERHUB_USERNAME}/${env.DOCKER_IMAGE_REPO_NAME}:${imageTag}"
 
-
-
                         echo "Building Docker image: ${fullImageName}"
-
                         sh "docker build -t ${fullImageName} ."
-
                         echo "Docker image built."
 
-
-
                         echo "Logging in to Docker Hub..."
-
                         withCredentials([usernamePassword(credentialsId: env.DOCKERHUB_CREDENTIALS_ID, passwordVariable: 'DOCKERHUB_PASSWORD', usernameVariable: 'DOCKERHUB_USERNAME_FROM_CREDS')]) {
-
                             sh "echo \$DOCKERHUB_PASSWORD | docker login -u \$DOCKERHUB_USERNAME_FROM_CREDS --password-stdin"
-
                         }
-
                         echo "Logged in to Docker Hub."
 
-
-
                         echo "Pushing Docker image: ${fullImageName}"
-
                         sh "docker push ${fullImageName}"
-
                         echo "Docker image pushed."
 
-
-
                         echo "Updating Kubernetes deployment manifest (${env.KUBERNETES_DEPLOYMENT_FILE}) with image: ${fullImageName}"
-
                         sh "sed -i 's|^ *image:.*|  image: ${fullImageName}|g' ${env.KUBERNETES_DEPLOYMENT_FILE}"
-
                         echo "Kubernetes deployment manifest updated."
 
-
-
                         echo "Stashing Kubernetes manifests..."
-
                         stash includes: "${env.KUBERNETES_DEPLOYMENT_FILE}, ${env.KUBERNETES_SERVICE_FILE}", name: 'kubeManifestsForDeploy'
-
                         echo "Kubernetes manifests stashed."
-
                     }
-
                 }
-
             }
-
         }
 
-
-
-        stage('Deploy to Kubernetes') {
-
+        stage('Deploy to Kubernetes (Diagnostic Mode)') { // Nama stage diubah untuk menandakan mode diagnostik
             agent {
-
                 kubernetes {
-
                     cloud 'k8s'
-
                     inheritFrom 'jenkins-agent'
-
                 }
-
             }
-
-steps {
-                container('kubectl') {
+            steps {
+                container('kubectl') { 
                     script {
                         echo "Unstashing Kubernetes manifests..."
                         unstash 'kubeManifestsForDeploy'
@@ -196,17 +99,17 @@ steps {
                         echo "Verifying kubectl client version..."
                         sh 'kubectl version --client'
 
-                        echo "--- DIAGNOSTIC: Content of kubernetes/deployment.yaml in Jenkins workspace ---"
-                        sh 'cat kubernetes/deployment.yaml' // Cetak isi file
+                        echo "--- DIAGNOSTIC: Content of ${env.KUBERNETES_DEPLOYMENT_FILE} in Jenkins workspace ---"
+                        sh "cat ${env.KUBERNETES_DEPLOYMENT_FILE}" // Mencetak isi file deployment aplikasi
                         sh 'echo "--- DIAGNOSTIC: End of content ---"'
 
-                        echo "DIAGNOSTIC: Validating kubernetes/deployment.yaml with kubectl dry-run..."
+                        echo "DIAGNOSTIC: Validating ${env.KUBERNETES_DEPLOYMENT_FILE} with kubectl dry-run..."
                         // Coba validasi dengan kubectl dry-run di dalam pipeline
                         // Tambahkan '|| true' agar pipeline tidak langsung gagal jika dry-run error,
                         // tapi kita bisa lihat outputnya.
                         sh "kubectl apply -f ${env.KUBERNETES_DEPLOYMENT_FILE} --dry-run=client -n ${env.APP_NAMESPACE} || true"
-
-                        echo "Applying Kubernetes deployment (${env.KUBERNETES_DEPLOYMENT_FILE})..."
+                        
+                        echo "Attempting to apply Kubernetes deployment (${env.KUBERNETES_DEPLOYMENT_FILE})..."
                         sh "kubectl apply -f ${env.KUBERNETES_DEPLOYMENT_FILE}"
                         echo "Kubernetes deployment applied."
 
@@ -221,38 +124,20 @@ steps {
                 }
             }
         }
-
-
-    post {
-
-        always {
-
-            echo 'Pipeline finished.'
-
-            // Membersihkan workspace di agent yang menjalankan post-actions.
-
-            // Menggunakan agent 'master' (built-in Jenkins node) untuk cleanup.
-
-            node('master') { // Pastikan node Jenkins master/controller Anda memiliki label 'master'
-
-               cleanWs()
-
-            }
-
-        }
-
-        success {
-
-            echo 'Pipeline Succeeded! ✅ Hooray!'
-
-        }
-
-        failure {
-
-            echo 'Pipeline Failed. ❌ Oh no!'
-
-        }
-
     }
 
+    post {
+        always {
+            echo 'Pipeline finished.'
+            node('master') { 
+               cleanWs()
+            }
+        }
+        success {
+            echo 'Pipeline Succeeded! ✅ Hooray!'
+        }
+        failure {
+            echo 'Pipeline Failed. ❌ Oh no!'
+        }
+    }
 }
