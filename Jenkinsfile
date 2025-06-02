@@ -18,7 +18,13 @@ pipeline {
 
         
 
-        APP_DEPLOYMENT_NAME      = 'carvilla-web' // DISESUAIKAN berdasarkan file YAML aplikasi Anda
+        // Disesuaikan berdasarkan metadata.name di kubernetes/deployment.yaml Anda
+
+        APP_DEPLOYMENT_NAME      = 'carvilla-web' 
+
+        
+
+        // Namespace tempat aplikasi akan di-deploy. File YAML aplikasi Anda menggunakan 'default'.
 
         APP_NAMESPACE            = 'default' 
 
@@ -26,9 +32,9 @@ pipeline {
 
 
 
-        KUBERNETES_DEPLOYMENT_FILE = 'kubernetes/deployment.yaml'
+        KUBERNETES_DEPLOYMENT_FILE = 'kubernetes/deployment.yaml' // Path sudah disesuaikan
 
-        KUBERNETES_SERVICE_FILE    = 'kubernetes/service.yaml'
+        KUBERNETES_SERVICE_FILE    = 'kubernetes/service.yaml'  // Path sudah disesuaikan (asumsi)
 
     }
 
@@ -38,13 +44,13 @@ pipeline {
 
         stage('Checkout SCM') {
 
-            agent any 
+            agent any // Bisa agent Jenkins default/master untuk checkout awal
 
             steps {
 
                 echo "Checking out SCM (Source Code Management)..."
 
-                checkout scm 
+                checkout scm // Mengambil kode dari Git repository yang dikonfigurasi di Jenkins job
 
                 echo "Checkout complete."
 
@@ -60,9 +66,9 @@ pipeline {
 
                 kubernetes {
 
-                    cloud 'k8s'                
+                    cloud 'k8s'                 // Nama Kubernetes Cloud Anda di Jenkins
 
-                    inheritFrom 'jenkins-agent' 
+                    inheritFrom 'jenkins-agent' // Merujuk ke NAMA Pod Template Anda
 
                 }
 
@@ -70,9 +76,13 @@ pipeline {
 
             steps {
 
+                // 'jnlp' adalah nama container utama di pod agent Kubernetes
+
                 container('jnlp') { 
 
                     echo 'Running tests... (No actual tests configured in this example)'
+
+                    // Jika ada perintah tes, tambahkan di sini.
 
                 }
 
@@ -97,6 +107,8 @@ pipeline {
             }
 
             steps {
+
+                // Perintah Docker akan dijalankan di dalam container 'docker'
 
                 container('docker') { 
 
@@ -160,7 +172,7 @@ pipeline {
 
 
 
-        stage('Deploy to Kubernetes (Diagnostic Mode)') { // Nama stage diubah untuk menandakan mode diagnostik
+        stage('Deploy to Kubernetes') {
 
             agent {
 
@@ -176,91 +188,49 @@ pipeline {
 
             steps {
 
-                // Mencoba menjalankan perintah di container default (jnlp) dari Pod Template 'jenkins-agent'
+                // Perintah kubectl akan dijalankan di dalam container 'kubectl'
 
-                container('jnlp') { 
+                container('kubectl') { 
 
                     script {
 
-                        echo "DIAGNOSTIC: Unstashing Kubernetes manifests into JNLP container..."
+                        echo "Unstashing Kubernetes manifests..."
 
                         unstash 'kubeManifestsForDeploy'
 
-                        echo "DIAGNOSTIC: Kubernetes manifests unstashed into JNLP container."
+                        echo "Kubernetes manifests unstashed."
 
 
 
-                        echo "DIAGNOSTIC: Testing basic command execution in JNLP container..."
+                        echo "Verifying kubectl context..."
 
-                        sh 'echo "Hello from JNLP container!"'
+                        sh 'kubectl config current-context'
 
-                        sh 'pwd'
-
-                        sh 'ls -la'
-
-                        sh 'ls -la kubernetes/' // Untuk melihat apakah hasil unstash ada di sini
+                        sh 'kubectl version --client'
 
 
 
-                        echo "DIAGNOSTIC: Attempting to install kubectl in JNLP container (assuming Alpine base)..."
+                        echo "Applying Kubernetes deployment (${env.KUBERNETES_DEPLOYMENT_FILE})..."
 
-                        // Perintah instalasi kubectl untuk Alpine (image jenkins/inbound-agent biasanya Alpine)
+                        sh "kubectl apply -f ${env.KUBERNETES_DEPLOYMENT_FILE}"
 
-                        // Jika gagal di sini, berarti image jnlp tidak bisa/tidak diizinkan melakukan ini,
-
-                        // atau tool (seperti apk, curl) tidak ada.
-
-                        sh '''
-
-                        echo "--- Starting kubectl install ---"
-
-                        apk update && apk add --no-cache curl gettext && \\
-
-                        echo "curl and gettext installed (or already present)." && \\
-
-                        curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl" && \\
-
-                        echo "kubectl downloaded." && \\
-
-                        chmod +x kubectl && \\
-
-                        mv kubectl /usr/local/bin/kubectl && \\
-
-                        echo "kubectl moved to /usr/local/bin." && \\
-
-                        kubectl version --client
-
-                        echo "--- Kubectl install attempt finished ---"
-
-                        '''
+                        echo "Kubernetes deployment applied."
 
 
 
-                        // Perintah apply asli dikomentari untuk sekarang
+                        echo "Applying Kubernetes service (${env.KUBERNETES_SERVICE_FILE})..."
 
-                        // echo "Applying Kubernetes deployment (${env.KUBERNETES_DEPLOYMENT_FILE})..."
+                        sh "kubectl apply -f ${env.KUBERNETES_SERVICE_FILE}"
 
-                        // sh "kubectl apply -f ${env.KUBERNETES_DEPLOYMENT_FILE}"
-
-                        // echo "Kubernetes deployment applied."
+                        echo "Kubernetes service applied."
 
 
 
-                        // echo "Applying Kubernetes service (${env.KUBERNETES_SERVICE_FILE})..."
+                        echo "Deployment to Kubernetes finished."
 
-                        // sh "kubectl apply -f ${env.KUBERNETES_SERVICE_FILE}"
+                        echo "Waiting for rollout of deployment '${env.APP_DEPLOYMENT_NAME}' in namespace '${env.APP_NAMESPACE}'..."
 
-                        // echo "Kubernetes service applied."
-
-
-
-                        // echo "Deployment to Kubernetes finished."
-
-                        // echo "Waiting for rollout of deployment '${env.APP_DEPLOYMENT_NAME}' in namespace '${env.APP_NAMESPACE}'..."
-
-                        // sh "kubectl rollout status deployment/${env.APP_DEPLOYMENT_NAME} -n ${env.APP_NAMESPACE} --timeout=3m"
-
-                        echo "DIAGNOSTIC: Deploy stage finished. Actual kubectl apply commands were commented out."
+                        sh "kubectl rollout status deployment/${env.APP_DEPLOYMENT_NAME} -n ${env.APP_NAMESPACE} --timeout=5m" // Timeout dinaikkan sedikit
 
                     }
 
@@ -280,7 +250,11 @@ pipeline {
 
             echo 'Pipeline finished.'
 
-            node('master') { 
+            // Membersihkan workspace di agent yang menjalankan post-actions.
+
+            // Menggunakan agent 'master' (built-in Jenkins node) untuk cleanup.
+
+            node('master') { // Pastikan node Jenkins master/controller Anda memiliki label 'master'
 
                cleanWs()
 
@@ -290,13 +264,13 @@ pipeline {
 
         success {
 
-            echo 'Pipeline Succeeded! ✅ (Diagnostic Mode)'
+            echo 'Pipeline Succeeded! ✅ Hooray!'
 
         }
 
         failure {
 
-            echo 'Pipeline Failed. ❌ (Diagnostic Mode)'
+            echo 'Pipeline Failed. ❌ Oh no!'
 
         }
 
