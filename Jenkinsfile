@@ -5,7 +5,7 @@ pipeline {
         DOCKERHUB_CREDENTIALS_ID = 'dockerhub-credentials' // ID kredensial DockerHub di Jenkins
 
         // === PASTIKAN ANDA MENGGANTI PLACEHOLDER INI DENGAN INFO ANDA ===
-        DOCKERHUB_USERNAME       = "ditomuflih" // GANTI dengan username Docker Hub Anda
+        DOCKERHUB_USERNAME       = "muflihf" // GANTI dengan username Docker Hub Anda
         DOCKER_IMAGE_REPO_NAME   = "carvilla-app-wsl-final" // GANTI dengan nama repo image yang Anda inginkan di Docker Hub
         
         // Disesuaikan berdasarkan metadata.name di kubernetes/deployment.yaml Anda
