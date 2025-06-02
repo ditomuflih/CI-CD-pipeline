@@ -17,18 +17,18 @@ spec:
     spec:
       containers:
       - name: carvilla-web
-        image: 10.34.7.115:30500/carvilla:${BUILD_NUMBER}
+        image: 10.34.7.115:30500/carvilla:${BUILD_NUMBER} # Baris ini akan diganti oleh pipeline
         ports:
         - containerPort: 80
           name: http
-        resources:
+        resources: # <--- PASTIKAN INDENTASI INI SEJAJAR DENGAN 'ports:' dan 'image:'
           limits:
             cpu: "0.5"
-            memory: "256Mi"
+            memory: "256Mi" # <--- KOREKSI INDENTASI DI SINI (SEJAJAR DENGAN 'cpu:' DI ATASNYA)
           requests:
             cpu: "0.2"
             memory: "128Mi"
-        readinessProbe:
+        readinessProbe: # <--- PASTIKAN INDENTASI INI SEJAJAR DENGAN 'resources:'
           httpGet:
             path: /
             port: 80
