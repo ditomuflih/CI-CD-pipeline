@@ -5,13 +5,10 @@ pipeline {
         DOCKERHUB_CREDENTIALS_ID = 'dockerhub-credentials' // ID kredensial DockerHub di Jenkins
 
         // === PASTIKAN ANDA MENGGANTI PLACEHOLDER INI DENGAN INFO ANDA ===
-        DOCKERHUB_USERNAME       = "muflihf" // GANTI dengan username Docker Hub Anda
+        DOCKERHUB_USERNAME       = "ditomuflih" // GANTI dengan username Docker Hub Anda
         DOCKER_IMAGE_REPO_NAME   = "carvilla-app-wsl-final" // GANTI dengan nama repo image yang Anda inginkan di Docker Hub
         
-        // Disesuaikan berdasarkan metadata.name di kubernetes/deployment.yaml Anda
         APP_DEPLOYMENT_NAME      = 'carvilla-web' 
-        
-        // Namespace tempat aplikasi akan di-deploy. File YAML aplikasi Anda menggunakan 'default'.
         APP_NAMESPACE            = 'default' 
         // =================================================================
 
@@ -71,7 +68,10 @@ pipeline {
                         echo "Docker image pushed."
 
                         echo "Updating Kubernetes deployment manifest (${env.KUBERNETES_DEPLOYMENT_FILE}) with image: ${fullImageName}"
-                        sh "sed -i 's|^ *image:.*|  image: ${fullImageName}|g' ${env.KUBERNETES_DEPLOYMENT_FILE}"
+                        // PENTING: Verifikasi dan sesuaikan jumlah spasi di bawah ini!
+                        // Berdasarkan screenshot Anda, sepertinya 8 spasi dari kiri diperlukan untuk 'image:'.
+                        def leadingSpacesForImage = "        " // Ini 8 spasi. VERIFIKASI DAN SESUAIKAN JIKA PERLU!
+                        sh "sed -i 's|^ *image:.*|${leadingSpacesForImage}image: ${fullImageName}|g' ${env.KUBERNETES_DEPLOYMENT_FILE}"
                         echo "Kubernetes deployment manifest updated."
 
                         echo "Stashing Kubernetes manifests..."
@@ -82,7 +82,7 @@ pipeline {
             }
         }
 
-        stage('Deploy to Kubernetes (Diagnostic Mode)') { // Nama stage diubah untuk menandakan mode diagnostik
+        stage('Deploy to Kubernetes (Diagnostic Mode)') {
             agent {
                 kubernetes {
                     cloud 'k8s'
@@ -104,9 +104,6 @@ pipeline {
                         sh 'echo "--- DIAGNOSTIC: End of content ---"'
 
                         echo "DIAGNOSTIC: Validating ${env.KUBERNETES_DEPLOYMENT_FILE} with kubectl dry-run..."
-                        // Coba validasi dengan kubectl dry-run di dalam pipeline
-                        // Tambahkan '|| true' agar pipeline tidak langsung gagal jika dry-run error,
-                        // tapi kita bisa lihat outputnya.
                         sh "kubectl apply -f ${env.KUBERNETES_DEPLOYMENT_FILE} --dry-run=client -n ${env.APP_NAMESPACE} || true"
                         
                         echo "Attempting to apply Kubernetes deployment (${env.KUBERNETES_DEPLOYMENT_FILE})..."
